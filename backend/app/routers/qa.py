@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.embeddings.embedder import EmbeddingEngine
-from app.routers.upload import request_state
+from app.state.store import REQUEST_STORE
 
 import requests
 import os

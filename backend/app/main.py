@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers.upload import router as upload_router
 from app.routers.qa import router as qa_router
+from app.routers.simplify import router as simplify_router
 import logging
 
 app = FastAPI(
@@ -22,6 +23,7 @@ app.add_middleware(
 # Register routers
 app.include_router(upload_router)
 app.include_router(qa_router)
+app.include_router(simplify_router)
 
 @app.get("/")
 def root():

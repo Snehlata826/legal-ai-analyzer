@@ -1,6 +1,6 @@
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from sentence_transformers import SentenceTransformer
-from langchain_community.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter # pyright: ignore[reportMissingImports]
+from sentence_transformers import SentenceTransformer # pyright: ignore[reportMissingImports]
+from langchain_community.vectorstores import FAISS # pyright: ignore[reportMissingImports]
 
 
 class EmbeddingEngine:

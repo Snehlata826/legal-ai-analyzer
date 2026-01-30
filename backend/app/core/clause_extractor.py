@@ -1,22 +1,33 @@
 import re
-from typing import Dict
+from typing import List
 
-CLAUSE_KEYWORDS = {
-    "Confidentiality": ["confidential", "non-disclosure", "privacy", "secret"],
-    "Termination": ["terminate", "termination", "end of agreement", "cancel"],
-    "Payment": ["payment", "fees", "compensation", "invoice"],
-    "Indemnity": ["indemnify", "hold harmless", "liability"],
-    "Governing Law": ["governing law", "jurisdiction", "disputes", "law of"],
-}
+def extract_clauses(text: str) -> List[str]:
+    """
+    Splits legal document text into individual clauses.
+    Returns a list of clause strings.
+    """
+    if not text:
+        return []
 
-def extract_clauses(text: str) -> Dict[str, str]:
-    clauses = {}
-    sections = re.split(r"\n+|\r+", text)
+    clauses = []
+    lines = re.split(r"\n+|\r+", text)
 
-    for clause_name, keywords in CLAUSE_KEYWORDS.items():
-        for section in sections:
-            if any(keyword.lower() in section.lower() for keyword in keywords):
-                clauses[clause_name] = section.strip()
-                break
-    
+    buffer = ""
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        # Detect start of a new clause
+        if re.match(r"^(\d+\.|clause|section)", line.lower()):
+            if buffer:
+                clauses.append(buffer.strip())
+            buffer = line
+        else:
+            buffer += " " + line
+
+    if buffer:
+        clauses.append(buffer.strip())
+
     return clauses
