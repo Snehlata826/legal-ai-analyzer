@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from app.services.simplifier import simplify_clause
 from app.state.store import REQUEST_STORE
+from app.core.risk_analyzer import analyze_risk
+
 
 router = APIRouter(prefix="/simplify", tags=["Simplification"])
 
@@ -18,7 +20,8 @@ def simplify_document(request_id: str):
         simplified_output.append({
             "clause_no": idx,
             "original": clause,
-            "simplified": simplify_clause(clause)
+            "simplified": simplify_clause(clause),
+            "risk": analyze_risk(clause)
         })
 
     return {

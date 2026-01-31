@@ -101,3 +101,40 @@ p {
   font-size: 14px;
 }
 
+/* Clause header with risk badge */
+.clause-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* Risk badges */
+.risk-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.risk-high {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.risk-medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.risk-low {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Status text */
+.status-text {
+  margin-top: 12px;
+  font-weight: 500;
+}
