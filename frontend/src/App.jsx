@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { uploadFile, simplifyDoc } from "./api";
-import "./index.css"; // ✅ CSS imported
+
+import FileUploader from "./components/FileUploader";
+import ClauseCard from "./components/ClauseCard";
+import Loader from "./components/Loader";
+import RiskSummary from "./components/RiskSummary";
+
+import { calculateRiskSummary } from "./utils/riskSummary";
+
+import "./index.css";
 
 function App() {
   const [results, setResults] = useState([]);
+  const [riskSummary, setRiskSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
-
-  // Map risk → CSS class
-  const getRiskClass = (risk) => {
-    if (risk === "HIGH") return "risk-high";
-    if (risk === "MEDIUM") return "risk-medium";
-    return "risk-low";
-  };
 
   const handleFileSelect = async (file) => {
     if (!file) return;
@@ -21,19 +23,22 @@ function App() {
       setLoading(true);
       setStatus("Uploading and processing document...");
 
-      // Upload + process
+      // Upload + extract
       const uploadRes = await uploadFile(file);
       const requestId = uploadRes.data.request_id;
 
-      setStatus("Simplifying clauses...");
+      setStatus("Simplifying and analyzing clauses...");
 
-      // Simplify
+      // Simplify + risk
       const simplifyRes = await simplifyDoc(requestId);
-      setResults(simplifyRes.data.results);
+      const resultsData = simplifyRes.data.results;
+
+      setResults(resultsData);
+      setRiskSummary(calculateRiskSummary(resultsData));
 
       setStatus(`✅ Processed: ${file.name}`);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       setStatus("❌ Something went wrong");
     } finally {
       setLoading(false);
@@ -46,38 +51,17 @@ function App() {
         ⚖️ <span>Legal AI Analyzer</span>
       </div>
 
-      {/* File input */}
-      <input
-        type="file"
-        accept=".pdf"
-        onChange={(e) => handleFileSelect(e.target.files[0])}
-      />
+      <FileUploader onFileSelect={handleFileSelect} />
 
-      {/* Status */}
       {status && <p className="status-text">{status}</p>}
-      {loading && <p>⏳ Please wait...</p>}
+      {loading && <Loader />}
 
-      {/* Results */}
+      {/* Risk Summary */}
+      {riskSummary && <RiskSummary summary={riskSummary} />}
+
+      {/* Clause Results */}
       {results.map((item) => (
-        <div key={item.clause_no} className="clause-card">
-          <div className="clause-header">
-            <div className="clause-title">
-              Clause {item.clause_no}
-            </div>
-
-            <span className={`risk-badge ${getRiskClass(item.risk)}`}>
-              {item.risk} RISK
-            </span>
-          </div>
-
-          <p className="original">
-            <b>Original:</b> {item.original}
-          </p>
-
-          <p className="simplified">
-            <b>Simplified:</b> {item.simplified}
-          </p>
-        </div>
+        <ClauseCard key={item.clause_no} item={item} />
       ))}
     </div>
   );

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.services.simplifier import simplify_clause
 from app.state.store import REQUEST_STORE
 from app.core.risk_analyzer import analyze_risk
-
+from app.core.risk_explainer import explain_risk
 
 router = APIRouter(prefix="/simplify", tags=["Simplification"])
 
@@ -21,7 +21,8 @@ def simplify_document(request_id: str):
             "clause_no": idx,
             "original": clause,
             "simplified": simplify_clause(clause),
-            "risk": analyze_risk(clause)
+            "risk": analyze_risk(clause),
+            "risk_reasons": explain_risk(clause)
         })
 
     return {
