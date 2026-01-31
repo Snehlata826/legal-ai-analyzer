@@ -32,7 +32,7 @@ def rule_based_simplify(text: str) -> str:
         t = t.replace(legal, simple)
 
     t = re.sub(r"\s+", " ", t).strip()
-    return f"Simple meaning: {t.capitalize()}"
+    return f"{t.capitalize()}"
 
 def clean_clause_text(clause: str) -> str:
     """
