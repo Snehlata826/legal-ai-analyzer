@@ -1,76 +1,52 @@
-def analyze_risk(clause: str) -> str:
+"""
+Risk analysis logic for legal clauses
+"""
+import re
+from typing import Literal
+
+RiskLevel = Literal["HIGH", "MEDIUM", "LOW"]
+
+
+# Risk keyword patterns
+HIGH_RISK_KEYWORDS = [
+    "indemnif", "liability", "liable", "termination", "terminate",
+    "penalty", "penalties", "breach", "damages", "default",
+    "forfeiture", "waive", "waiver", "exclude", "exclusion",
+    "disclaim", "disclaimer", "non-refundable", "irreversible"
+]
+
+MEDIUM_RISK_KEYWORDS = [
+    "arbitration", "dispute", "jurisdiction", "governing law",
+    "force majeure", "confidential", "proprietary", "intellectual property",
+    "amendment", "modify", "modification", "notice", "consent",
+    "assignment", "subcontract", "audit", "inspection"
+]
+
+LOW_RISK_KEYWORDS = [
+    "general", "standard", "usual", "ordinary", "routine",
+    "interpretation", "severability", "headings", "entire agreement",
+    "counterparts", "whereas", "recital"
+]
+
+
+def analyze_risk(clause: str) -> RiskLevel:
     """
-    Rule-based legal risk analyzer using weighted scoring.
-    Simulates model-like behavior without ML training.
-
-    Returns: HIGH | MEDIUM | LOW
+    Analyze risk level of a clause based on keyword matching.
+    
+    Returns:
+        "HIGH", "MEDIUM", or "LOW"
     """
-
-    text = clause.lower()
-
-    HIGH_RISK_KEYWORDS = {
-        "indemnify": 3,
-        "penalty": 3,
-        "liquidated damages": 3,
-        "breach": 3,
-        "terminate": 3,
-        "termination": 3,
-        "liability": 3,
-        "hold harmless": 3,
-        "unlimited liability": 4,
-        "fine": 3,
-        "forfeit": 3,
-        "compensation": 2,
-        "damages": 3,
-        "losses": 2,
-        "default": 3,
-    }
-
-    MEDIUM_RISK_KEYWORDS = {
-        "arbitration": 2,
-        "jurisdiction": 2,
-        "governing law": 2,
-        "force majeure": 2,
-        "dispute": 2,
-        "indirect damages": 2,
-        "consequential damages": 2,
-        "confidentiality": 1,
-        "non-disclosure": 1,
-        "nda": 1,
-        "intellectual property": 2,
-        "ip rights": 2,
-        "assignment": 1,
-        "subcontract": 1,
-    }
-
-    LOW_RISK_KEYWORDS = {
-        "notice": 0.5,
-        "severability": 0.5,
-        "amendment": 0.5,
-        "entire agreement": 0.5,
-        "definitions": 0.5,
-        "headings": 0.5,
-        "counterparts": 0.5,
-    }
-
-    score = 0
-
-    for word, weight in HIGH_RISK_KEYWORDS.items():
-        if word in text:
-            score += weight
-
-    for word, weight in MEDIUM_RISK_KEYWORDS.items():
-        if word in text:
-            score += weight
-
-    for word, weight in LOW_RISK_KEYWORDS.items():
-        if word in text:
-            score += weight
-
-    # ---- Decision thresholds (tunable like training) ----
-    if score >= 4:
-        return "HIGH"
-    elif score >= 2:
-        return "MEDIUM"
-    else:
-        return "LOW"
+    clause_lower = clause.lower()
+    
+    # Check for HIGH risk keywords
+    for keyword in HIGH_RISK_KEYWORDS:
+        if re.search(r'\b' + keyword, clause_lower):
+            return "HIGH"
+    
+    # Check for MEDIUM risk keywords
+    for keyword in MEDIUM_RISK_KEYWORDS:
+        if re.search(r'\b' + keyword, clause_lower):
+            return "MEDIUM"
+    
+    # Default to LOW risk
+    return "LOW"

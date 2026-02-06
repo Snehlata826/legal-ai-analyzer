@@ -1,27 +1,49 @@
-import { getRiskClass } from "../utils/riskUtils";
+import React, { useState } from 'react';
 
-function ClauseCard({ item }) {
+const ClauseCard = ({ clause, index }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const toggleExpand = () => {
+    setExpanded(!expanded);
+  };
+
   return (
     <div className="clause-card">
       <div className="clause-header">
         <div className="clause-title">
-          Clause {item.clause_no}
+          <span className="clause-number">Clause {index + 1}</span>
+          <span className={`risk-badge ${clause.risk.toLowerCase()}`}>
+            {clause.risk}
+          </span>
         </div>
-
-        <span className={`risk-badge ${getRiskClass(item.risk)}`}>
-          {item.risk} RISK
-        </span>
       </div>
 
-      <p className="original">
-        <b>Original:</b> {item.original}
-      </p>
+      <div className="clause-content">
+        <div className="clause-section">
+          <h4>Simplified Explanation</h4>
+          <p className="simplified-text">{clause.simplified}</p>
+        </div>
 
-      <p className="simplified">
-        <b>Simplified:</b> {item.simplified}
-      </p>
+        <button className="expand-button" onClick={toggleExpand}>
+          {expanded ? '▼ Hide Details' : '▶ Show Original & Risk Explanation'}
+        </button>
+
+        {expanded && (
+          <>
+            <div className="clause-section">
+              <h4>Original Clause</h4>
+              <p className="original-text">{clause.original}</p>
+            </div>
+
+            <div className="clause-section">
+              <h4>Risk Explanation</h4>
+              <p className="explanation-text">{clause.explanation}</p>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
-}
+};
 
 export default ClauseCard;

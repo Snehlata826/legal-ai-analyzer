@@ -1,49 +1,63 @@
+"""
+Upload endpoint for legal documents
+"""
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.core.extract_text import extract_text_from_file
-from app.core.clause_extractor import extract_clauses
-from app.state.store import REQUEST_STORE
-
+from pypdf import PdfReader
+import io
 import uuid
-import logging
 
-logger = logging.getLogger(__name__)
+from ..core.clause_extractor import extract_clauses
+from ..state import store
 
-router = APIRouter(prefix="/upload", tags=["File Upload"])
+router = APIRouter()
 
 
-@router.post("/")
-async def upload_file(file: UploadFile = File(...)):
-    logger.info(f"Received upload request for file: {file.filename}")
-
-    if file.content_type not in [
-        "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "image/png",
-        "image/jpeg"
-    ]:
-        raise HTTPException(status_code=400, detail="File type not supported")
-
-    content = await file.read()
-
-    extracted_text = extract_text_from_file(content, file.content_type)
-    if not extracted_text:
-        raise HTTPException(status_code=500, detail="Failed to extract text")
-
-    clauses = extract_clauses(extracted_text)
-
-    request_id = str(uuid.uuid4())
-
-    REQUEST_STORE[request_id] = {
-        "filename": file.filename,
-        "content_type": file.content_type,
-        "clauses": clauses
-    }
-
-    logger.info(f"Upload successful | request_id={request_id}")
-
-    return {
-        "status": "success",
-        "request_id": request_id,
-        "filename": file.filename,
-        "total_clauses": len(clauses)
-    }
+@router.post("/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """
+    Upload a PDF legal document and extract clauses.
+    
+    Returns:
+        request_id: Unique ID for this request
+        clauses: List of extracted clauses
+    """
+    # Validate file type
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    
+    try:
+        # Read PDF content
+        content = await file.read()
+        pdf_file = io.BytesIO(content)
+        
+        # Extract text from PDF
+        reader = PdfReader(pdf_file)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() + "\n"
+        
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="Could not extract text from PDF")
+        
+        # Extract clauses
+        clauses = extract_clauses(text)
+        
+        if len(clauses) == 0:
+            raise HTTPException(status_code=400, detail="No clauses found in document")
+        
+        # Generate unique request ID
+        request_id = str(uuid.uuid4())
+        
+        # Store in memory
+        store.create_request(request_id, clauses)
+        
+        return {
+            "request_id": request_id,
+            "clauses": clauses,
+            "total_clauses": len(clauses)
+        }
+    
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")

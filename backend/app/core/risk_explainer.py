@@ -1,20 +1,17 @@
-RISK_EXPLANATIONS = {
-    "indemnify": "You may have to pay for losses caused to the other party.",
-    "terminate": "The agreement can be ended suddenly, which may harm you.",
-    "breach": "Breaking this clause can lead to legal action.",
-    "liability": "You could be legally responsible for damages.",
-    "penalty": "Financial punishment may apply.",
-    "arbitration": "You may not be able to go to court directly.",
-    "jurisdiction": "Legal cases can only be filed in a specific location.",
-    "force majeure": "Uncontrollable events can excuse obligations.",
+"""
+Risk explanation generator
+"""
+from typing import Dict
+from .risk_analyzer import RiskLevel
+
+
+RISK_EXPLANATIONS: Dict[RiskLevel, str] = {
+    "HIGH": "This clause contains terms that could significantly impact your rights, obligations, or financial liability. Review carefully or consult legal counsel.",
+    "MEDIUM": "This clause involves procedural or administrative matters that may affect how disputes or changes are handled. Understanding these terms is important.",
+    "LOW": "This is a standard administrative or interpretive clause with minimal risk impact. These are common in most agreements."
 }
 
-def explain_risk(clause: str):
-    clause_lower = clause.lower()
-    reasons = []
 
-    for keyword, explanation in RISK_EXPLANATIONS.items():
-        if keyword in clause_lower:
-            reasons.append(explanation)
-
-    return reasons
+def get_risk_explanation(risk_level: RiskLevel) -> str:
+    """Get human-readable explanation for risk level"""
+    return RISK_EXPLANATIONS.get(risk_level, RISK_EXPLANATIONS["LOW"])

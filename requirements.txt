@@ -1,0 +1,13 @@
+# Legal AI Analyzer - Python Dependencies
+# 
+# Installation:
+# cd backend
+# python -m venv venv
+# venv\Scripts\activate  (Windows) or source venv/bin/activate (Mac/Linux)
+# pip install -r requirements.txt
+
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+pypdf==3.17.1
+fpdf2==2.7.6

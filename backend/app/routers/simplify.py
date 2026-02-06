@@ -1,32 +1,61 @@
+"""
+Simplification endpoint for legal clauses
+"""
 from fastapi import APIRouter, HTTPException
-from app.services.simplifier import simplify_clause
-from app.state.store import REQUEST_STORE
-from app.core.risk_analyzer import analyze_risk
-from app.core.risk_explainer import explain_risk
+from typing import List, Dict, Any
 
-router = APIRouter(prefix="/simplify", tags=["Simplification"])
+from ..state import store
+from ..services.simplifier import simplify_text
+from ..core.risk_analyzer import analyze_risk
+from ..core.risk_explainer import get_risk_explanation
+
+router = APIRouter()
 
 
-@router.post("/{request_id}")
-def simplify_document(request_id: str):
-    if request_id not in REQUEST_STORE:
-        raise HTTPException(status_code=404, detail="Invalid request_id")
-
-    clauses = REQUEST_STORE[request_id]["clauses"]
-
-    simplified_output = []
-
-    for idx, clause in enumerate(clauses, start=1):
-        simplified_output.append({
-            "clause_no": idx,
+@router.post("/simplify/{request_id}")
+async def simplify_clauses(request_id: str):
+    """
+    Simplify clauses and analyze risk for a given request.
+    
+    Args:
+        request_id: Request ID from upload endpoint
+        
+    Returns:
+        results: List of analyzed clauses with simplification and risk
+    """
+    # Check if request exists
+    if not store.request_exists(request_id):
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Get request data
+    request_data = store.get_request(request_id)
+    clauses = request_data["clauses"]
+    
+    # Process each clause
+    results: List[Dict[str, Any]] = []
+    
+    for clause in clauses:
+        # Simplify text
+        simplified = simplify_text(clause)
+        
+        # Analyze risk
+        risk_level = analyze_risk(clause)
+        
+        # Get risk explanation
+        explanation = get_risk_explanation(risk_level)
+        
+        results.append({
             "original": clause,
-            "simplified": simplify_clause(clause),
-            "risk": analyze_risk(clause),
-            "risk_reasons": explain_risk(clause)
+            "simplified": simplified,
+            "risk": risk_level,
+            "explanation": explanation
         })
-
+    
+    # Store results
+    store.update_results(request_id, results)
+    
     return {
         "request_id": request_id,
-        "total_clauses": len(clauses),
-        "results": simplified_output
+        "results": results,
+        "total_processed": len(results)
     }

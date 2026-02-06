@@ -1,94 +1,81 @@
+"""
+Legal text simplification using rule-based replacements
+"""
 import re
-from transformers import pipeline
-
-# ---------- AI MODEL (loaded once) ----------
-try:
-    ai_simplifier = pipeline(
-        "text2text-generation",
-        model="google/flan-t5-base"
-    )
-except Exception:
-    ai_simplifier = None
+from typing import Dict
 
 
-# ---------- RULE-BASED FALLBACK ----------
-REPLACEMENTS = {
-    "indemnify": "pay for losses",
-    "hold harmless": "not blame",
-    "force majeure": "events beyond control",
-    "terminate": "end",
-    "shall": "will",
-    "liable": "legally responsible",
-    "governed and construed in accordance with": "follow",
-    "arbitration": "private dispute resolution",
-    "jurisdiction": "legal authority",
-    "severed": "removed",
-    "waiver": "giving up a right",
+# Legal jargon to plain English mappings
+JARGON_REPLACEMENTS: Dict[str, str] = {
+    r'\bhereby\b': 'by this document',
+    r'\bherein\b': 'in this document',
+    r'\bhereinafter\b': 'from now on',
+    r'\bheretofore\b': 'until now',
+    r'\bhereto\b': 'to this',
+    r'\bwhereas\b': 'since',
+    r'\bwherein\b': 'in which',
+    r'\bwhereby\b': 'by which',
+    r'\bforthwith\b': 'immediately',
+    r'\bnotwithstanding\b': 'despite',
+    r'\bpursuant to\b': 'according to',
+    r'\bprior to\b': 'before',
+    r'\bsubsequent to\b': 'after',
+    r'\bin the event that\b': 'if',
+    r'\bprovided that\b': 'if',
+    r'\bshall\b': 'will',
+    r'\bmay not\b': 'cannot',
+    r'\bshall not\b': 'will not',
+    r'\bterminates?\b': 'ends',
+    r'\btermination\b': 'ending',
+    r'\bindemnify\b': 'compensate for losses',
+    r'\bindemnification\b': 'compensation for losses',
+    r'\bliable\b': 'responsible',
+    r'\bliability\b': 'responsibility',
+    r'\bbreach\b': 'violation',
+    r'\bforce majeure\b': 'unforeseeable circumstances',
+    r'\barbitration\b': 'dispute resolution',
+    r'\bjurisdiction\b': 'legal authority',
+    r'\bgoverning law\b': 'controlling law',
+    r'\bexecute\b': 'sign',
+    r'\bexecution\b': 'signing',
+    r'\bparty\b': 'person or company',
+    r'\bparties\b': 'people or companies',
+    r'\baforementioned\b': 'mentioned above',
+    r'\baforesaid\b': 'mentioned before',
+    r'\bthereunder\b': 'under that',
+    r'\bthereof\b': 'of that',
+    r'\btherein\b': 'in that',
+    r'\bwaive\b': 'give up',
+    r'\bwaiver\b': 'giving up',
+    r'\bpropriety\b': 'ownership',
+    r'\bconfidential information\b': 'private information',
+    r'\bdisclaim\b': 'deny responsibility for',
+    r'\bdisclaimer\b': 'denial of responsibility'
 }
 
-def rule_based_simplify(text: str) -> str:
-    t = text.lower()
-    for legal, simple in REPLACEMENTS.items():
-        t = t.replace(legal, simple)
 
-    t = re.sub(r"\s+", " ", t).strip()
-    return f"{t.capitalize()}"
-
-def clean_clause_text(clause: str) -> str:
+def simplify_text(text: str) -> str:
     """
-    Removes numbering and clause titles from legal clauses.
+    Simplify legal text by replacing jargon with plain English.
+    
+    Args:
+        text: Legal clause text
+        
+    Returns:
+        Simplified version of the text
     """
-    text = clause.strip()
-
-    # Remove numbering like "1.", "2)", "3. "
-    text = re.sub(r"^\d+[\.\)]\s*", "", text)
-
-    # Remove clause titles like "Indemnification:", "Force Majeure:"
-    text = re.sub(r"^[A-Za-z\s]+:\s*", "", text)
-
-    return text.strip()
-
-# ---------- MAIN FUNCTION ----------
-def simplify_clause(clause: str) -> str:
-    """
-    Production-ready legal clause simplifier.
-    Uses AI first, falls back to rule-based logic safely.
-    """
-
-    clause = clean_clause_text(clause)
-    if not clause:
-        return "No meaningful legal content found."
-
-    # ----- Try AI simplification -----
-    if ai_simplifier:
-        try:
-            prompt = (
-                "Explain the following legal clause in very simple English.\n"
-                "Do NOT repeat the clause.\n"
-                "Explain the meaning in 1 or 2 short sentences using everyday words.\n\n"
-                f"{clause}"
-            )
-
-            result = ai_simplifier(
-                prompt,
-                max_length=120,
-                do_sample=False
-            )
-
-            simplified = result[0]["generated_text"].strip()
-
-            # ---- Quality checks ----
-            if (
-                len(simplified) < 25
-                or simplified.lower() in clause.lower()
-                or clause.lower() in simplified.lower()
-            ):
-                raise ValueError("Weak AI output")
-
-            return simplified
-
-        except Exception:
-            pass  # fallback below
-
-    # ----- Fallback -----
-    return rule_based_simplify(clause)
+    simplified = text
+    
+    # Apply all jargon replacements
+    for pattern, replacement in JARGON_REPLACEMENTS.items():
+        simplified = re.sub(pattern, replacement, simplified, flags=re.IGNORECASE)
+    
+    # Remove excessive legal formatting
+    simplified = re.sub(r'\s+', ' ', simplified)  # Normalize whitespace
+    simplified = simplified.strip()
+    
+    # Shorten if too long (keep first 200 chars for readability)
+    if len(simplified) > 250:
+        simplified = simplified[:247] + "..."
+    
+    return simplified
