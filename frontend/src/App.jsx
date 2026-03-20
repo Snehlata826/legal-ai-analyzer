@@ -3,31 +3,48 @@ import FileUploader from './components/FileUploader';
 import ClauseCard from './components/ClauseCard';
 import RiskSummary from './components/RiskSummary';
 import Loader from './components/Loader';
+import QAChat from './components/QAChat';
 import { uploadDocument, simplifyClauses, downloadReport } from './api';
 import { calculateRiskSummary } from './utils/riskSummary';
+import './index.css';
 
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [loadingStep, setLoadingStep] = useState(0);
   const [requestId, setRequestId] = useState(null);
   const [results, setResults] = useState([]);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('clauses');
+  // Chat persisted in App — survives tab switching
+  const [chatMessages, setChatMessages] = useState([]);
 
   const handleFileSelect = async (file) => {
     setIsLoading(true);
-    setLoadingMessage('Uploading and extracting clauses...');
+    setLoadingStep(1);
+    setLoadingMessage('Reading your document...');
     setError(null);
     setResults([]);
+    setChatMessages([]); // only reset on NEW upload
 
     try {
-      // Step 1: Upload document
+      setLoadingStep(1);
+      setLoadingMessage('Extracting clauses...');
       const uploadResponse = await uploadDocument(file);
       setRequestId(uploadResponse.request_id);
 
-      // Step 2: Simplify clauses
-      setLoadingMessage('Analyzing and simplifying clauses...');
+      setLoadingStep(2);
+      setLoadingMessage('Analysing risk levels...');
+      await new Promise(r => setTimeout(r, 300));
+
+      setLoadingStep(3);
+      setLoadingMessage('Simplifying with Groq AI...');
       const simplifyResponse = await simplifyClauses(uploadResponse.request_id);
-      
+
+      setLoadingStep(4);
+      setLoadingMessage('Finalising...');
+      await new Promise(r => setTimeout(r, 200));
+
       setResults(simplifyResponse.results);
       setIsLoading(false);
     } catch (err) {
@@ -38,10 +55,9 @@ function App() {
 
   const handleDownloadReport = async () => {
     if (!requestId) return;
-
     try {
-      setLoadingMessage('Generating PDF report...');
       setIsLoading(true);
+      setLoadingMessage('Generating PDF report...');
       await downloadReport(requestId);
       setIsLoading(false);
     } catch (err) {
@@ -54,59 +70,121 @@ function App() {
     setRequestId(null);
     setResults([]);
     setError(null);
+    setActiveTab('clauses');
+    setChatMessages([]);
   };
 
   const riskSummary = results.length > 0 ? calculateRiskSummary(results) : null;
+  const highCount = riskSummary?.HIGH || 0;
+  const chatQuestionCount = chatMessages.filter(m => m.role === 'user').length;
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>⚖️ Legal AI Analyzer</h1>
-        <p className="subtitle">Simplify legal documents and analyze risk levels</p>
+        <div className="header-inner">
+          <div className="brand">
+            <span className="brand-icon">⚖</span>
+            <div className="brand-text">
+              <h1 className="brand-name">LexAnalyze</h1>
+              <p className="brand-tagline">Legal Document Intelligence</p>
+            </div>
+          </div>
+          <div className="header-pills">
+            <span className="pill pill--dark">Groq LLaMA3</span>
+            <span className="pill pill--green">Free</span>
+          </div>
+        </div>
       </header>
 
       <main className="app-main">
         {error && (
-          <div className="error-message">
-            <strong>Error:</strong> {error}
-            <button className="error-dismiss" onClick={() => setError(null)}>×</button>
+          <div className="error-banner">
+            <span className="error-icon">⚠</span>
+            <span className="error-text">{error}</span>
+            <button className="error-close" onClick={() => setError(null)}>×</button>
           </div>
         )}
 
-        {isLoading && <Loader message={loadingMessage} />}
+        {isLoading && (
+          <Loader message={loadingMessage} step={loadingStep} />
+        )}
 
         {!isLoading && results.length === 0 && (
-          <FileUploader onFileSelect={handleFileSelect} isLoading={isLoading} />
+          <FileUploader onFileSelect={handleFileSelect} />
         )}
 
         {!isLoading && results.length > 0 && (
-          <>
-            <div className="results-header">
-              <h2>Analysis Complete</h2>
-              <div className="action-buttons">
-                <button className="btn btn-primary" onClick={handleDownloadReport}>
-                  📥 Download PDF Report
+          <div className="results-wrap">
+
+            {/* Top bar */}
+            <div className="results-topbar">
+              <div className="results-title-row">
+                <h2 className="results-heading">Analysis Complete</h2>
+                <div className="results-chips">
+                  <span className="chip chip--neutral">{results.length} clauses</span>
+                  {highCount > 0 && (
+                    <span className="chip chip--danger">
+                      ⚠ {highCount} high risk
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="results-actions">
+                <button className="btn btn--ghost" onClick={handleReset}>
+                  ↩ New Document
                 </button>
-                <button className="btn btn-secondary" onClick={handleReset}>
-                  🔄 Analyze Another Document
+                <button className="btn btn--solid" onClick={handleDownloadReport}>
+                  ↓ Download Report
                 </button>
               </div>
             </div>
 
-            <RiskSummary summary={riskSummary} />
+            {/* Risk summary */}
+            <RiskSummary summary={riskSummary} total={results.length} />
 
-            <div className="clauses-container">
-              <h3>Detailed Clause Analysis ({results.length} clauses)</h3>
-              {results.map((result, index) => (
-                <ClauseCard key={index} clause={result} index={index} />
-              ))}
+            {/* Tabs */}
+            <div className="tab-bar">
+              <button
+                className={`tab-item ${activeTab === 'clauses' ? 'tab-item--active' : ''}`}
+                onClick={() => setActiveTab('clauses')}
+              >
+                📋 Clauses
+                <span className="tab-badge">{results.length}</span>
+              </button>
+              <button
+                className={`tab-item ${activeTab === 'qa' ? 'tab-item--active' : ''}`}
+                onClick={() => setActiveTab('qa')}
+              >
+                💬 Ask Questions
+                {chatQuestionCount > 0 && (
+                  <span className="tab-badge tab-badge--blue">{chatQuestionCount}</span>
+                )}
+              </button>
             </div>
-          </>
+
+            {/* Tab panels */}
+            {activeTab === 'clauses' && (
+              <div className="clauses-panel">
+                {results.map((result, index) => (
+                  <ClauseCard key={index} clause={result} index={index} />
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'qa' && (
+              <QAChat
+                requestId={requestId}
+                messages={chatMessages}
+                setMessages={setChatMessages}
+              />
+            )}
+
+          </div>
         )}
       </main>
 
       <footer className="app-footer">
-        <p>Legal AI Analyzer v1.0 • For informational purposes only • Not legal advice</p>
+        LexAnalyze v2.0 · For informational purposes only · Not legal advice
       </footer>
     </div>
   );

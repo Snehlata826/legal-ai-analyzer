@@ -4,9 +4,7 @@
 
 const API_BASE_URL = 'http://localhost:8000';
 
-/**
- * Upload PDF document
- */
+/** Upload PDF document */
 export const uploadDocument = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -20,13 +18,10 @@ export const uploadDocument = async (file) => {
     const error = await response.json();
     throw new Error(error.detail || 'Upload failed');
   }
-
   return response.json();
 };
 
-/**
- * Simplify and analyze clauses
- */
+/** Simplify and analyse clauses */
 export const simplifyClauses = async (requestId) => {
   const response = await fetch(`${API_BASE_URL}/simplify/${requestId}`, {
     method: 'POST',
@@ -36,13 +31,25 @@ export const simplifyClauses = async (requestId) => {
     const error = await response.json();
     throw new Error(error.detail || 'Simplification failed');
   }
-
   return response.json();
 };
 
-/**
- * Download PDF report
- */
+/** Ask a question about the document (RAG) */
+export const askQuestion = async (requestId, question) => {
+  const response = await fetch(`${API_BASE_URL}/ask/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ request_id: requestId, question }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Q&A failed');
+  }
+  return response.json();
+};
+
+/** Download PDF report */
 export const downloadReport = async (requestId) => {
   const response = await fetch(`${API_BASE_URL}/report/${requestId}`);
 

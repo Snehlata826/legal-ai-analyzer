@@ -27,14 +27,14 @@ def call_groq(
     prompt: str,
     system: str = "You are a helpful legal document assistant.",
     max_tokens: int = 500,
-    model: str = "llama3-8b-8192"
+    model: str = "llama-3.1-8b-instant"
 ) -> str:
     """
     Call Groq API with a prompt.
 
     Free models available:
-    - llama3-8b-8192     (fastest, good quality)
-    - llama3-70b-8192    (best quality, slightly slower)
+    - llama-3.1-8b-instant (fastest, good quality)
+    - llama-3.1-70b-instant (best quality, slightly slower)
     - mixtral-8x7b-32768 (good for long documents)
     - gemma-7b-it        (Google's model)
 

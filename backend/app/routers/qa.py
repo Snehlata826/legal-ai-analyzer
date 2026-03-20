@@ -1,69 +1,143 @@
+"""
+Q&A endpoint using keyword search + Groq API (RAG pipeline)
+"""
 from fastapi import APIRouter, HTTPException
-from app.embeddings.embedder import EmbeddingEngine
-from app.state.store import REQUEST_STORE
+from pydantic import BaseModel
+from typing import List, Dict
 
-import requests
-import os
-import logging
-from sklearn.metrics.pairwise import cosine_similarity
+from ..core.groq_client import call_groq
+from ..state.store import REQUEST_STORE
 
-logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/ask", tags=["Q&A"])
 
-router = APIRouter(prefix="/ask", tags=["Chat Q&A"])
 
-# Sanity configuration
-SANITY_PROJECT_ID = "your_project_id"  # replace with your project ID
-SANITY_DATASET = "your_dataset"        # replace with your dataset name
-SANITY_TOKEN = os.getenv("SANITY_TOKEN")  # optional if private dataset
+class QuestionRequest(BaseModel):
+    request_id: str
+    question: str
 
-def fetch_sanity_docs(query: str):
-    """Fetch documents from Sanity using GROQ"""
-    url = f"https://{SANITY_PROJECT_ID}.api.sanity.io/v2025-11-28/data/query/{SANITY_DATASET}"
-    headers = {"Authorization": f"Bearer {SANITY_TOKEN}"} if SANITY_TOKEN else {}
-    params = {"query": query}
-    try:
-        response = requests.get(url, params=params, headers=headers)
-        response.raise_for_status()
-        return response.json().get("result", [])
-    except Exception as e:
-        logger.error(f"Error fetching Sanity docs: {e}")
-        return []
+
+def _find_relevant_clauses(
+    question: str,
+    clauses: List[str],
+    top_k: int = 3
+) -> List[Dict]:
+    """
+    Find relevant clauses using keyword overlap scoring.
+    Much more reliable than hash-based embeddings.
+    """
+    stop_words = {
+        'what', 'is', 'the', 'are', 'how', 'does', 'do',
+        'a', 'an', 'in', 'of', 'for', 'to', 'and', 'or',
+        'this', 'that', 'it', 'be', 'will', 'can', 'has',
+        'have', 'was', 'were', 'been', 'with', 'by', 'at'
+    }
+    q_words = set(question.lower().split()) - stop_words
+
+    scored = []
+    for clause in clauses:
+        clause_lower = clause.lower()
+        clause_words = set(clause_lower.split()) - stop_words
+
+        # Keyword overlap score
+        overlap = len(q_words & clause_words)
+
+        # Bonus for exact phrase match
+        bonus = 0
+        for word in q_words:
+            if len(word) > 4 and word in clause_lower:
+                bonus += 2
+
+        score = overlap + bonus
+        if score > 0:
+            scored.append({
+                "clause": clause,
+                "score": score
+            })
+
+    scored.sort(key=lambda x: x["score"], reverse=True)
+
+    # If nothing matched, return first 3 clauses
+    if not scored:
+        return [{"clause": c, "score": 0} for c in clauses[:3]]
+
+    return scored[:top_k]
+
 
 @router.post("/")
-async def ask_question(question: dict):
-    query_text = question.get("q")
-    if not query_text:
-        raise HTTPException(status_code=400, detail="Question 'q' is required.")
+async def ask_question(body: QuestionRequest):
+    """
+    Answer questions about uploaded legal document using RAG.
+    """
+    if body.request_id not in REQUEST_STORE:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found. Please upload first."
+        )
 
-    # Load precomputed vector state
-    chunks = request_state.get("chunks", [])
-    vectors = request_state.get("vectors", [])
+    request_data = REQUEST_STORE[body.request_id]
+    clauses = request_data.get("clauses", [])
 
-    if not chunks or not vectors:
-        raise HTTPException(status_code=500, detail="No vector data available. Upload documents first.")
+    if not clauses:
+        raise HTTPException(
+            status_code=400,
+            detail="No clauses found in document."
+        )
 
-    # Embed query
-    embedder = EmbeddingEngine()
-    q_vec = embedder.model.encode([query_text])
+    # Step 1 — Find relevant clauses
+    relevant = _find_relevant_clauses(
+        question=body.question,
+        clauses=clauses,
+        top_k=3
+    )
 
-    # Compute cosine similarity to find top context
-    scores = cosine_similarity(q_vec, vectors)
-    top_idx = scores[0].argmax()
-    context = chunks[top_idx]
+    # Step 2 — Build context string
+    context = "\n\n".join([
+        f"Clause {i+1}: {item['clause']}"
+        for i, item in enumerate(relevant)
+    ])
 
-    # Use GROQ to fetch related documents from Sanity
-    # Example: search articles or FAQs containing top context keywords
-    keywords = " ".join(context.split()[:10])  # first 10 words as query
-    groq_query = f'*[_type in ["article", "faq"] && count((title match "{keywords}") + (body match "{keywords}")) > 0]{{title, body}}'
-    docs = fetch_sanity_docs(groq_query)
+    # Step 3 — Call Groq with improved prompt
+    try:
+        answer = call_groq(
+            prompt=f"""You are a friendly legal document explainer helping a non-lawyer understand their contract.
 
-    if docs:
-        # Combine matching docs as context
-        context_text = "\n\n".join([f"{d['title']}: {d['body']}" for d in docs])
-    else:
-        context_text = context  # fallback to original chunk
+Answer the question in TWO clearly labelled parts:
+
+SIMPLE ANSWER: Explain in 1-2 plain English sentences anyone can understand. No legal jargon.
+
+LEGAL DETAIL: Quote the exact relevant part of the clause that supports your answer.
+
+Document clauses:
+{context}
+
+Question: {body.question}
+
+Answer:""",
+            system=(
+                "You are a helpful legal assistant who explains legal documents "
+                "in simple plain English. Always give a simple explanation first, "
+                "then quote the legal detail. Be concise and clear."
+            ),
+            max_tokens=350,
+            model="llama-3.1-8b-instant"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Groq API error: {str(e)}"
+        )
 
     return {
-        "answer": context_text,
-        "source": context
+        "answer": answer,
+        "sources": [
+            {
+                "clause": (
+                    item["clause"][:200] + "..."
+                    if len(item["clause"]) > 200
+                    else item["clause"]
+                ),
+                "relevance_score": round(item["score"] / 10, 3)
+            }
+            for item in relevant
+        ]
     }

@@ -13,9 +13,7 @@ router = APIRouter()
 
 @router.get("/report/{request_id}")
 async def generate_report(request_id: str):
-    """
-    Generate and download PDF report for analyzed clauses.
-    """
+    """Generate and download PDF report"""
     if not store.request_exists(request_id):
         raise HTTPException(status_code=404, detail="Request not found")
 
@@ -29,11 +27,13 @@ async def generate_report(request_id: str):
         )
 
     try:
-        # generate_pdf_report now RETURNS FILE PATH
         pdf_path = generate_pdf_report(request_id, results)
 
         if not Path(pdf_path).exists():
-            raise HTTPException(status_code=500, detail="PDF file was not created")
+            raise HTTPException(
+                status_code=500,
+                detail="PDF file was not created"
+            )
 
         return FileResponse(
             path=pdf_path,

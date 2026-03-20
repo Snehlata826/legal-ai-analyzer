@@ -1,269 +1,196 @@
-# Legal AI Analyzer
+# ⚖️ Legal AI Analyzer v2.0
 
-A production-ready web application that analyzes legal documents, extracts clauses, simplifies legal jargon into plain English, and assigns risk levels to each clause.
+An AI-powered legal document analysis system that extracts clauses, simplifies legal jargon into plain English, assigns risk levels, provides word-level explainability, and answers questions about your document — all using **Groq API** (free, no GPU needed).
 
-## Features
+---
 
-- 📄 **PDF Upload**: Upload legal documents in PDF format
-- 🔍 **Clause Extraction**: Automatically extracts clauses from legal documents
-- 💡 **Plain English Translation**: Simplifies legal jargon using rule-based logic
-- ⚠️ **Risk Analysis**: Assigns HIGH, MEDIUM, or LOW risk levels to each clause
-- 📊 **Visual Risk Summary**: See risk distribution at a glance
-- 📥 **PDF Report Generation**: Download a comprehensive analysis report
-- 🖥️ **Local & Offline**: Runs completely on your Windows machine
+## 🚀 What's New in v2.0
 
-## Tech Stack
+| Feature | v1.0 | v2.0 |
+|---------|------|------|
+| Text Simplification | Rule-based regex | **Groq LLM (LLaMA3)** |
+| Risk Analysis | Keyword matching | Keyword + explainability |
+| Explainability | None | **Word-level attribution** |
+| Named Entities | None | **spaCy NLP (parties, dates, amounts)** |
+| Q&A System | None | **RAG pipeline with Groq** |
+| API Cost | Free | **Free (Groq)** |
+
+---
+
+## 🛠️ Tech Stack
 
 ### Backend
-- **Python 3.11**
-- **FastAPI** - Modern web framework
-- **pypdf** - PDF text extraction
-- **fpdf2** - PDF report generation
-- **Uvicorn** - ASGI server
+- **Python 3.11** — FastAPI, Uvicorn
+- **Groq API** — Free LLaMA3 inference (no GPU)
+- **spaCy** — Named entity recognition (optional)
+- **pypdf** — PDF text extraction
+- **fpdf2** — PDF report generation
 
 ### Frontend
-- **React 18** (Vite)
-- **Plain CSS** - No external UI libraries
-- **Fetch API** - Backend communication
+- **React 18** + **Vite**
+- Plain CSS — no UI libraries needed
 
-## Project Structure
+### AI Pipeline
+```
+PDF Upload
+    ↓
+Clause Extraction (spaCy / regex)
+    ↓
+Risk Classification (keyword matching + explainability)
+    ↓
+Text Simplification (Groq LLaMA3 API)
+    ↓
+Q&A via RAG (semantic search + Groq)
+    ↓
+PDF Report Download
+```
+
+---
+
+## 📁 Project Structure
 
 ```
 legal-ai-analyzer/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI application
-│   │   ├── state/
-│   │   │   └── store.py         # In-memory request storage
+│   │   ├── main.py                  ← FastAPI app entry point
+│   │   ├── core/
+│   │   │   ├── groq_client.py       ← Groq API wrapper (free LLM)
+│   │   │   ├── clause_extractor.py  ← spaCy + regex extraction
+│   │   │   ├── risk_analyzer.py     ← Risk classification + explainability
+│   │   │   └── risk_explainer.py    ← Word-level attribution
 │   │   ├── routers/
-│   │   │   ├── upload.py        # PDF upload endpoint
-│   │   │   ├── simplify.py      # Simplification endpoint
-│   │   │   └── report.py        # Report generation endpoint
+│   │   │   ├── upload.py            ← POST /upload
+│   │   │   ├── simplify.py          ← POST /simplify/{id}
+│   │   │   ├── report.py            ← GET  /report/{id}
+│   │   │   └── qa.py                ← POST /ask/ (RAG Q&A)
 │   │   ├── services/
-│   │   │   ├── simplifier.py    # Text simplification logic
-│   │   │   └── pdf_report.py    # PDF generation service
-│   │   └── core/
-│   │       ├── clause_extractor.py  # Clause extraction
-│   │       ├── risk_analyzer.py     # Risk assessment
-│   │       └── risk_explainer.py    # Risk explanations
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── FileUploader.jsx     # File upload UI
-│   │   │   ├── ClauseCard.jsx       # Clause display card
-│   │   │   ├── RiskSummary.jsx      # Risk visualization
-│   │   │   └── Loader.jsx           # Loading indicator
-│   │   ├── api/
-│   │   │   └── index.js             # API client
-│   │   ├── utils/
-│   │   │   └── riskSummary.js       # Risk calculation
-│   │   ├── App.jsx                  # Main application
-│   │   ├── main.jsx                 # Entry point
-│   │   └── index.css                # Styles
-│   ├── package.json
-│   └── vite.config.js
-└── README.md
+│   │   │   ├── simplifier.py        ← Groq simplification service
+│   │   │   └── pdf_report.py        ← PDF generation
+│   │   └── state/
+│   │       └── store.py             ← In-memory request store
+│   ├── requirements.txt
+│   └── .env.example
+└── frontend/
+    ├── src/
+    │   ├── App.jsx                  ← Main app with tabs
+    │   ├── components/
+    │   │   ├── ClauseCard.jsx       ← Clause display with attributions
+    │   │   ├── RiskSummary.jsx      ← Risk bar chart
+    │   │   ├── QAChat.jsx           ← Chat interface (RAG)
+    │   │   ├── FileUploader.jsx     ← PDF upload UI
+    │   │   └── Loader.jsx           ← Loading spinner
+    │   ├── api/index.js             ← API client
+    │   └── utils/riskSummary.js     ← Risk calculation
+    ├── package.json
+    └── vite.config.js
 ```
-
-## Installation & Setup
-
-### Prerequisites
-
-- **Python 3.11** ([Download](https://www.python.org/downloads/))
-- **Node.js 18+** ([Download](https://nodejs.org/))
-- **Git** ([Download](https://git-scm.com/))
-
-### Step 1: Clone or Extract the Project
-
-```bash
-cd legal-ai-analyzer
-```
-
-### Step 2: Backend Setup
-
-1. **Navigate to backend directory**:
-   ```bash
-   cd backend
-   ```
-
-2. **Create a virtual environment**:
-   ```bash
-   python -m venv venv
-   ```
-
-3. **Activate the virtual environment**:
-   - On Windows:
-     ```bash
-     venv\Scripts\activate
-     ```
-   - On macOS/Linux:
-     ```bash
-     source venv/bin/activate
-     ```
-
-4. **Install Python dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-5. **Run the backend server**:
-   ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-   You should see:
-   ```
-   INFO:     Uvicorn running on http://0.0.0.0:8000
-   INFO:     Application startup complete.
-   ```
-
-   **Keep this terminal open** - the backend is now running.
-
-### Step 3: Frontend Setup
-
-1. **Open a NEW terminal** and navigate to frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. **Install Node.js dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Run the frontend development server**:
-   ```bash
-   npm run dev
-   ```
-
-   You should see:
-   ```
-   VITE v5.x.x  ready in xxx ms
-
-   ➜  Local:   http://localhost:5173/
-   ➜  Network: use --host to expose
-   ```
-
-4. **Open your browser** and go to:
-   ```
-   http://localhost:5173
-   ```
-
-## Usage
-
-1. **Upload a PDF**: Click the upload box and select a legal PDF document
-2. **Auto-Processing**: The app automatically:
-   - Extracts clauses from the document
-   - Simplifies each clause into plain English
-   - Analyzes and assigns risk levels
-3. **Review Results**: Browse through the analyzed clauses
-4. **Download Report**: Click "Download PDF Report" to get a comprehensive analysis
-5. **Analyze Another**: Click "Analyze Another Document" to start over
-
-## API Endpoints
-
-### Backend API (http://localhost:8000)
-
-- **POST /upload** - Upload PDF document
-  - Request: `multipart/form-data` with PDF file
-  - Response: `{request_id, clauses, total_clauses}`
-
-- **POST /simplify/{request_id}** - Simplify and analyze clauses
-  - Response: `{request_id, results, total_processed}`
-
-- **GET /report/{request_id}** - Generate PDF report
-  - Response: PDF file download
-
-- **GET /health** - Health check
-  - Response: `{status: "healthy"}`
-
-## Risk Levels
-
-### HIGH Risk
-Keywords: indemnification, liability, termination, penalties, breach, damages, waiver, exclusion, disclaimer
-
-**Example**: "Party A shall indemnify Party B against all losses"
-**Why High**: Could result in significant financial liability
-
-### MEDIUM Risk
-Keywords: arbitration, dispute resolution, jurisdiction, force majeure, confidentiality, amendments
-
-**Example**: "Disputes shall be resolved through arbitration"
-**Why Medium**: Affects how issues are handled but with less immediate financial impact
-
-### LOW Risk
-Keywords: general, standard, interpretation, severability, entire agreement
-
-**Example**: "This agreement constitutes the entire understanding"
-**Why Low**: Standard administrative clauses with minimal impact
-
-## Troubleshooting
-
-### Backend won't start
-- Ensure Python 3.11 is installed: `python --version`
-- Make sure virtual environment is activated
-- Check if port 8000 is available: `netstat -an | findstr 8000`
-
-### Frontend won't start
-- Ensure Node.js is installed: `node --version`
-- Delete `node_modules` and run `npm install` again
-- Check if port 5173 is available
-
-### Upload fails
-- Ensure file is a valid PDF
-- Check backend is running at http://localhost:8000
-- Check browser console for CORS errors
-
-### PDF report generation fails
-- Ensure you've run the `/simplify` endpoint first
-- Check backend logs for errors
-
-## Development Notes
-
-### Code Quality
-- Clean, modular architecture with clear separation of concerns
-- Type hints used throughout Python code
-- Comprehensive error handling
-- Production-ready code structure
-
-### Performance
-- Limits clause extraction to 50 clauses for optimal performance
-- In-memory storage for fast access
-- Efficient rule-based processing (no ML overhead)
-
-### Security
-- CORS configured for local development only
-- File type validation on upload
-- Input sanitization in text processing
-
-## Future Enhancements
-
-- [ ] Add support for DOCX files
-- [ ] Implement persistent storage (SQLite/PostgreSQL)
-- [ ] Add user authentication
-- [ ] Export to JSON/Excel formats
-- [ ] Add custom risk keyword configuration
-- [ ] Implement clause comparison between documents
-- [ ] Add historical analysis tracking
-
-## License
-
-MIT License - Feel free to use this project for personal or commercial purposes.
-
-## Disclaimer
-
-This tool is for informational purposes only and does not constitute legal advice. Always consult with a qualified attorney for legal matters.
-
-## Support
-
-For issues or questions:
-1. Check the Troubleshooting section
-2. Review backend/frontend logs
-3. Ensure all dependencies are properly installed
 
 ---
 
-**Version**: 1.0.0  
-**Author**: Full-Stack Engineering Team  
-**Last Updated**: 2025
+## ⚙️ Installation & Setup
+
+> Full step-by-step instructions are in **SETUP.md**
+
+### Quick Start (3 steps)
+
+**Step 1 — Get free Groq API key**
+1. Go to [https://console.groq.com](https://console.groq.com)
+2. Sign up (free, no credit card)
+3. Create an API key
+
+**Step 2 — Backend**
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate          # Windows
+source venv/bin/activate       # Mac/Linux
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env → paste your GROQ_API_KEY
+uvicorn app.main:app --reload --port 8000
+```
+
+**Step 3 — Frontend**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) 🎉
+
+---
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/upload` | Upload PDF, extract clauses |
+| `POST` | `/simplify/{id}` | Simplify + risk analyse all clauses |
+| `GET`  | `/report/{id}` | Download PDF report |
+| `POST` | `/ask/` | Ask questions about the document |
+| `GET`  | `/health` | Health check |
+
+### Example Q&A Request
+```json
+POST /ask/
+{
+  "request_id": "your-request-id",
+  "question": "What is the monthly payment amount?"
+}
+```
+
+### Example Q&A Response
+```json
+{
+  "answer": "The monthly fee is INR 50,000 as stated in Clause 3.",
+  "sources": [
+    {
+      "clause": "Party B agrees to pay Party A a monthly fee of INR 50,000...",
+      "relevance_score": 0.847
+    }
+  ]
+}
+```
+
+---
+
+## 🎯 Risk Levels
+
+| Level | Keywords | Example |
+|-------|----------|---------|
+| 🔴 HIGH | indemnify, liability, termination, breach, damages, waiver, disclaimer | "Party B shall indemnify Party A against all losses" |
+| 🟡 MEDIUM | arbitration, jurisdiction, confidential, force majeure, amendment | "Disputes resolved through binding arbitration" |
+| 🟢 LOW | entire agreement, severability, headings, counterparts | "This document constitutes the entire agreement" |
+
+---
+
+## 💡 How the RAG Pipeline Works
+
+```
+User Question
+     ↓
+Semantic Search
+(find most relevant clauses using cosine similarity)
+     ↓
+Context Building
+(top 3 relevant clauses sent as context)
+     ↓
+Groq LLaMA3 API
+(generates answer grounded in document)
+     ↓
+Answer + Source Citations
+```
+
+---
+
+## ⚠️ Disclaimer
+
+This tool is for **informational purposes only** and does **not** constitute legal advice. Always consult a qualified attorney for legal matters.
+
+---
+
+## 📄 License
+
+MIT License — free for personal and commercial use.
