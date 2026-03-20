@@ -1,2 +1,29 @@
-sentence-transformers
-requests
+# Legal AI Analyzer v2.0 - Python Dependencies
+# Lightweight - works on any system, no GPU needed
+#
+# Installation:
+#   cd backend
+#   python -m venv venv
+#   venv\Scripts\activate        (Windows)
+#   source venv/bin/activate     (Mac/Linux)
+#   pip install -r requirements.txt
+
+# Core API framework
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+python-dotenv==1.0.0
+
+# PDF processing
+pypdf==3.17.1
+fpdf2==2.7.6
+
+# Groq API (free LLM - no GPU needed)
+groq==0.9.0
+
+# NLP (optional - installs separately, see SETUP.md)
+# spacy==3.7.2
+# Run after pip install: python -m spacy download en_core_web_sm
+
+# Data
+numpy==1.24.3

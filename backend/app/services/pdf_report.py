@@ -1,6 +1,7 @@
 """
-PDF report generation service
+Compact & Professional PDF report generation service
 """
+
 from fpdf import FPDF
 from typing import List, Dict, Any
 from datetime import datetime
@@ -10,18 +11,17 @@ OUTPUT_DIR = "temp_reports"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-# -------------------------
-# Helpers
-# -------------------------
+# =========================
+# TEXT SAFETY HELPERS
+# =========================
+
 def safe_text(text) -> str:
-    """Ensure text is always a safe string."""
     if isinstance(text, (bytes, bytearray)):
         return text.decode("utf-8", errors="ignore")
     return str(text)
 
 
 def sanitize_text(text) -> str:
-    """Replace unsupported Unicode characters."""
     text = safe_text(text)
 
     replacements = {
@@ -39,107 +39,162 @@ def sanitize_text(text) -> str:
     for u, a in replacements.items():
         text = text.replace(u, a)
 
-    # Final ASCII safety pass
     return text.encode("ascii", "replace").decode("ascii")
 
 
-# -------------------------
-# PDF Class
-# -------------------------
+# =========================
+# PDF CLASS
+# =========================
+
 class LegalReportPDF(FPDF):
 
+    def header(self):
+        self.set_font("Arial", "", 9)
+        self.set_text_color(120, 120, 120)
+        self.cell(0, 6, "Legal AI Analyzer", align="R")
+        self.ln(8)
+        self.set_text_color(0, 0, 0)
 
     def footer(self):
-        self.set_y(-15)
+        self.set_y(-12)
         self.set_font("Arial", "I", 8)
-        self.cell(0, 10, f"Page {self.page_no()}", align="C")
+        self.set_text_color(120, 120, 120)
+        self.cell(0, 6, f"Page {self.page_no()}", align="C")
+        self.set_text_color(0, 0, 0)
 
 
-# -------------------------
-# Main Generator
-# -------------------------
+# =========================
+# MAIN PDF GENERATOR
+# =========================
+
 def generate_pdf_report(
     request_id: str,
     results: List[Dict[str, Any]]
 ) -> str:
-    """
-    Generate PDF report and save to disk.
 
-    Returns:
-        Path to generated PDF file
-    """
     pdf = LegalReportPDF()
+    pdf.set_auto_page_break(auto=True, margin=12)
+    pdf.set_margins(15, 15, 15)
     pdf.add_page()
 
-# --- Cover Section ---
-    pdf.set_font("Arial", "B", 20)
-    pdf.cell(0, 15, "LEGAL RISK ANALYSIS REPORT", ln=True, align="C")
+    # =====================================
+    # TITLE
+    # =====================================
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "LEGAL RISK ANALYSIS REPORT", ln=True, align="C")
 
-    pdf.ln(10)
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 8, f"Report ID: {request_id}", ln=True, align="C")
-    pdf.cell(0, 8, f"Generated on: {datetime.now():%d %B %Y}", ln=True)
-    pdf.cell(0, 8, f"Total Clauses Analyzed: {len(results)}", ln=True)
+    pdf.ln(4)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(6)
+
+    # =====================================
+    # METADATA SECTION (Compact)
+    # =====================================
+    pdf.set_font("Arial", "", 10)
+
+    pdf.cell(35, 6, "Report ID:")
+    pdf.cell(0, 6, request_id, ln=True)
+
+    pdf.cell(35, 6, "Generated On:")
+    pdf.cell(0, 6, f"{datetime.now():%d %B %Y}", ln=True)
+
+    pdf.cell(35, 6, "Total Clauses:")
+    pdf.cell(0, 6, str(len(results)), ln=True)
+
     pdf.ln(5)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(6)
 
-    pdf.ln(12)
-    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
-    pdf.ln(15)
+    # =====================================
+    # RISK SUMMARY
+    # =====================================
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(0, 7, "RISK SUMMARY", ln=True)
+    pdf.ln(3)
 
-
-
-    # Risk summary
     risk_counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
     for r in results:
         risk_counts[r["risk"]] += 1
 
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Risk Summary", ln=True)
     pdf.set_font("Arial", "", 10)
 
-    for risk, count in risk_counts.items():
-        color = {
-            "HIGH": (220, 53, 69),
-            "MEDIUM": (255, 193, 7),
-            "LOW": (40, 167, 69),
-        }[risk]
+    for risk in ["HIGH", "MEDIUM", "LOW"]:
+        count = risk_counts[risk]
 
-        pdf.set_text_color(*color)
-        pdf.cell(0, 8, f"{risk}: {count} clause(s)", ln=True)
+        if risk == "HIGH":
+            pdf.set_text_color(220, 53, 69)
+        elif risk == "MEDIUM":
+            pdf.set_text_color(255, 140, 0)
+        else:
+            pdf.set_text_color(40, 167, 69)
+
+        pdf.cell(30, 6, risk)
+        pdf.cell(0, 6, f"{count} clause(s)", ln=True)
 
     pdf.set_text_color(0, 0, 0)
-    pdf.ln(8)
-
-    # Clause details
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Detailed Analysis", ln=True)
     pdf.ln(5)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(6)
+
+    # =====================================
+    # DETAILED ANALYSIS
+    # =====================================
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(0, 7, "DETAILED ANALYSIS", ln=True)
+    pdf.ln(4)
 
     for i, r in enumerate(results, 1):
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 8, f"Clause {i} - Risk: {r['risk']}", ln=True)
 
-        pdf.set_font("Arial", "B", 9)
-        pdf.cell(0, 6, "Original:", ln=True)
+        # Clause Header
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(0, 6, f"Clause {i}", ln=True)
+
+        # Risk Level
         pdf.set_font("Arial", "", 9)
-        pdf.multi_cell(0, 5, sanitize_text(r["original"][:300]))
+        pdf.cell(25, 5, "Risk:")
+
+        if r["risk"] == "HIGH":
+            pdf.set_text_color(220, 53, 69)
+        elif r["risk"] == "MEDIUM":
+            pdf.set_text_color(255, 140, 0)
+        else:
+            pdf.set_text_color(40, 167, 69)
+
+        pdf.cell(0, 5, r["risk"], ln=True)
+        pdf.set_text_color(0, 0, 0)
 
         pdf.ln(2)
+        pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+        pdf.ln(3)
+
+        # Original Clause
         pdf.set_font("Arial", "B", 9)
-        pdf.cell(0, 6, "Simplified:", ln=True)
+        pdf.cell(0, 5, "Original Clause", ln=True)
+
+        pdf.set_font("Arial", "", 9)
+        pdf.multi_cell(0, 5, sanitize_text(r["original"]))
+        pdf.ln(2)
+
+        # Simplified Clause
+        pdf.set_font("Arial", "B", 9)
+        pdf.cell(0, 5, "Simplified Explanation", ln=True)
+
         pdf.set_font("Arial", "", 9)
         pdf.multi_cell(0, 5, sanitize_text(r["simplified"]))
-
         pdf.ln(2)
+
+        # Risk Explanation
         pdf.set_font("Arial", "B", 9)
-        pdf.cell(0, 6, "Risk Explanation:", ln=True)
+        pdf.cell(0, 5, "Risk Explanation", ln=True)
+
         pdf.set_font("Arial", "I", 9)
         pdf.multi_cell(0, 5, sanitize_text(r["explanation"]))
+        pdf.ln(6)
 
-        pdf.ln(5)
-        if pdf.get_y() > 250:
-            pdf.add_page()
-
+    # =====================================
+    # SAVE FILE
+    # =====================================
     file_path = os.path.join(OUTPUT_DIR, f"{request_id}.pdf")
     pdf.output(file_path)
+
     return file_path

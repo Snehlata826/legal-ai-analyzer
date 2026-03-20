@@ -75,7 +75,5 @@ def simplify_text(text: str) -> str:
     simplified = simplified.strip()
     
     # Shorten if too long (keep first 200 chars for readability)
-    if len(simplified) > 250:
-        simplified = simplified[:247] + "..."
     
     return simplified
