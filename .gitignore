@@ -8,8 +8,6 @@ venv/
 *.egg-info/
 
 # ML models (large binary files — regenerate with train_classifier.py)
-backend/models/*.pkl
-
 # Generated reports
 backend/temp_reports/
 
@@ -23,3 +21,6 @@ frontend/dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# Local Netlify folder
+.netlify
