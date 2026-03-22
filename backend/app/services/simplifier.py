@@ -94,6 +94,6 @@ def _rule_based_simplify(text: str) -> str:
         )
 
     simplified = ' '.join(simplified.split()).strip()
-    if len(simplified) > 250:
-        simplified = simplified[:247] + "..."
+    if len(simplified) > 1000:
+        simplified = simplified[:997] + "..."
     return simplified

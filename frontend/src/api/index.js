@@ -2,7 +2,7 @@
  * API client for backend communication
  */
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8001';
 
 /** Upload PDF document */
 export const uploadDocument = async (file) => {
@@ -61,10 +61,13 @@ export const downloadReport = async (requestId) => {
   const blob = await response.blob();
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
+  a.style.display = 'none';
   a.href = url;
   a.download = `legal_analysis_${requestId.substring(0, 8)}.pdf`;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
+  setTimeout(() => {
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }, 100);
 };

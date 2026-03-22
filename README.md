@@ -108,7 +108,7 @@ source venv/bin/activate       # Mac/Linux
 pip install -r requirements.txt
 cp .env.example .env
 # Edit .env → paste your GROQ_API_KEY
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 ```
 
 **Step 3 — Frontend**
