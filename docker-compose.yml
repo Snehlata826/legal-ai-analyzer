@@ -1,0 +1,68 @@
+version: "3.9"
+
+# ══════════════════════════════════════════════════════════════════
+#  Legal AI Analyzer — Docker Compose (local development)
+#
+#  Usage:
+#    docker compose up --build          # first run
+#    docker compose up                  # subsequent runs
+#    docker compose down                # stop & remove containers
+#
+#  Prerequisites:
+#    1. Copy backend/.env.example → backend/.env
+#    2. Add your GROQ_API_KEY to backend/.env
+# ══════════════════════════════════════════════════════════════════
+
+services:
+
+  # ── Backend (FastAPI) ────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lexanalyze-backend
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./backend/.env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8001
+      - ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://frontend:5173
+    volumes:
+      # Persist generated PDF reports across restarts
+      - report_data:/app/temp_reports
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - lexanalyze-net
+
+  # ── Frontend (Vite + React) ──────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lexanalyze-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8001
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - lexanalyze-net
+
+volumes:
+  report_data:
+    driver: local
+
+networks:
+  lexanalyze-net:
+    driver: bridge

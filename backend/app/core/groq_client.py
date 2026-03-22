@@ -1,66 +1,66 @@
 """
-Groq API client - Free, fast LLM API
+Groq API client — uses centralised settings from config.py
 Get your free key at: https://console.groq.com
 """
-import os
 from groq import Groq
 
-_client = None
+from .config import settings
+
+_client: Groq | None = None
 
 
 def get_groq_client() -> Groq:
-    """Get or create Groq client singleton"""
+    """Return (or lazily create) the Groq client singleton."""
     global _client
     if _client is None:
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
+        if not settings.groq_api_key:
             raise ValueError(
-                "GROQ_API_KEY not set in .env file. "
-                "Get your free key at https://console.groq.com"
+                "GROQ_API_KEY is not set. "
+                "Copy backend/.env.example → backend/.env and add your key."
             )
-        _client = Groq(api_key=api_key)
-        print("[INFO] Groq client initialized")
+        _client = Groq(api_key=settings.groq_api_key)
+        print(f"[INFO] Groq client initialised (model: {settings.groq_default_model})")
     return _client
 
 
 def call_groq(
     prompt: str,
     system: str = "You are a helpful legal document assistant.",
-    max_tokens: int = 500,
-    model: str = "llama-3.1-8b-instant"
+    max_tokens: int | None = None,
+    model: str | None = None,
 ) -> str:
     """
-    Call Groq API with a prompt.
-
-    Free models available:
-    - llama-3.1-8b-instant (fastest, good quality)
-    - llama-3.1-70b-instant (best quality, slightly slower)
-    - mixtral-8x7b-32768 (good for long documents)
-    - gemma-7b-it        (Google's model)
+    Call the Groq chat completion API.
 
     Args:
-        prompt: User message
-        system: System instruction
-        max_tokens: Max response length
-        model: Model to use
+        prompt:     User message.
+        system:     System instruction prepended to the conversation.
+        max_tokens: Max response length (defaults to settings.groq_max_tokens).
+        model:      Model override (defaults to settings.groq_default_model).
 
     Returns:
-        Response text string
+        Stripped response string.
+
+    Raises:
+        RuntimeError: If the Groq API call fails.
     """
     client = get_groq_client()
 
+    _model = model or settings.groq_default_model
+    _max_tokens = max_tokens or settings.groq_max_tokens
+
     try:
         response = client.chat.completions.create(
-            model=model,
+            model=_model,
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user", "content": prompt}
+                {"role": "user",   "content": prompt},
             ],
-            max_tokens=max_tokens,
-            temperature=0.3
+            max_tokens=_max_tokens,
+            temperature=settings.groq_temperature,
         )
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        print(f"[ERROR] Groq API call failed: {e}")
+        print(f"[ERROR] Groq API call failed (model={_model}): {e}")
         raise RuntimeError(f"Groq API error: {str(e)}")

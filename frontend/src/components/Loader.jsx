@@ -3,8 +3,9 @@ import React from 'react';
 const STEPS = [
   'Reading document',
   'Extracting clauses',
-  'Analysing risks',
+  'Running ML classifier',
   'AI simplification',
+  'SHAP explanations',
   'Finalising',
 ];
 
@@ -12,7 +13,6 @@ const Loader = ({ message, step }) => (
   <div className="loader-wrap">
     <div className="loader-spinner" />
     <p className="loader-message">{message}</p>
-
     <div className="loader-steps">
       {STEPS.map((s, i) => (
         <div

@@ -1,104 +1,192 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 
-const RISK_CONFIG = {
-  HIGH:   { color: '#c0392b', bg: '#fdf2f2', border: '#e8c4c4', label: 'High Risk' },
-  MEDIUM: { color: '#b7770d', bg: '#fdf8ee', border: '#e8d8a0', label: 'Medium Risk' },
-  LOW:    { color: '#1a7a4a', bg: '#f2faf5', border: '#a8d8bc', label: 'Low Risk' },
+const RISK = {
+  HIGH:   { cls: 'high',   label: 'High risk' },
+  MEDIUM: { cls: 'medium', label: 'Medium risk' },
+  LOW:    { cls: 'low',    label: 'Low risk' },
 };
 
-const ClauseCard = ({ clause, index }) => {
+// Filter out meaningless TF-IDF n-gram artifacts (numbers, stopwords, short tokens)
+const STOP_WORDS = new Set([
+  'the','of','and','to','in','is','it','at','be','as','or','an','if','on',
+  'by','we','us','he','she','they','this','that','with','for','not','from',
+  'are','was','were','has','have','had','but','its','our','your','their',
+  'all','any','can','may','will','each','both','such','more','also',
+]);
+
+function isMeaningfulToken(word) {
+  if (!word) return false;
+  const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (clean.length < 3) return false;
+  if (STOP_WORDS.has(clean)) return false;
+  // Skip tokens that are purely numeric (e.g. "10 of")
+  if (/^\d+$/.test(word.trim())) return false;
+  return true;
+}
+
+function ClauseCard({ clause, index }) {
   const [expanded, setExpanded] = useState(false);
-  const cfg = RISK_CONFIG[clause.risk] || RISK_CONFIG.LOW;
+  const risk = RISK[clause.risk] || RISK.LOW;
+  const isML = clause.classifier === 'ml_ensemble';
+  const conf = clause.ml_confidence ? Math.round(clause.ml_confidence * 100) : null;
+
+  // Filter to only meaningful SHAP tokens
+  const meaningfulAttrs = (clause.attributions || []).filter(
+    a => isMeaningfulToken(a.word)
+  );
+  const inlineTokens = meaningfulAttrs.slice(0, 4);
+
+  const hasProbs = clause.ml_probabilities &&
+    Object.keys(clause.ml_probabilities).length > 0;
+
+  const toggle = useCallback(() => setExpanded(v => !v), []);
 
   return (
-    <div className="clause-card" style={{ borderLeftColor: cfg.color }}>
+    <div className={`clause-card clause-card--${risk.cls}`}>
+      <div className="clause-card-inner">
 
-      {/* Card header */}
-      <div className="clause-card-header">
-        <div className="clause-card-meta">
-          <span className="clause-num">#{index + 1}</span>
-          <span
-            className="risk-tag"
-            style={{
-              color: cfg.color,
-              background: cfg.bg,
-              border: `1px solid ${cfg.border}`
-            }}
-          >
-            {cfg.label}
+        {/* ── Header ── */}
+        <div className="clause-header">
+          <span className="clause-index">#{index + 1}</span>
+
+          <span className={`risk-pill risk-pill--${risk.cls}`}>
+            {risk.label}
+            {conf !== null && (
+              <>
+                <span className="risk-pill-sep">·</span>
+                <span className="risk-pill-conf">{conf}%</span>
+              </>
+            )}
           </span>
+
+          {!isML && (
+            <span className="keyword-mode-tag" title="Install shap + run train_classifier.py for ML mode">
+              ⚡ keyword
+            </span>
+          )}
         </div>
 
-        {/* Attribution keywords */}
-        {clause.attributions && clause.attributions.length > 0 && (
-          <div className="clause-keywords">
-            {clause.attributions.slice(0, 3).map((attr, i) => (
-              <span
-                key={i}
-                className="keyword-tag"
-                style={{
-                  color: attr.risk_level === 'HIGH' ? '#c0392b' : '#b7770d',
-                  background: attr.risk_level === 'HIGH' ? '#fdf2f2' : '#fdf8ee',
-                }}
-                title={attr.reason}
-              >
-                {attr.word}
-              </span>
-            ))}
+        {/* ── Summary ── */}
+        <p className="clause-summary">{clause.simplified}</p>
+
+        {/* ── SHAP tokens (meaningful only) ── */}
+        {inlineTokens.length > 0 && (
+          <div className="shap-tokens">
+            {inlineTokens.map((attr, i) => {
+              const val = attr.shap_value ?? (attr.weight ?? 0);
+              const isPos = val >= 0;
+              return (
+                <span
+                  key={i}
+                  className={`shap-token shap-token--${isPos ? 'pos' : 'neg'}`}
+                  title={attr.reason || attr.direction?.replace(/_/g, ' ') || ''}
+                >
+                  {attr.word}
+                  {val !== 0 && (
+                    <span className="shap-token-val">
+                      {isPos ? '+' : ''}{val.toFixed(2)}
+                    </span>
+                  )}
+                </span>
+              );
+            })}
           </div>
         )}
+
+        {/* ── Toggle ── */}
+        <button className="clause-toggle" onClick={toggle} aria-expanded={expanded}>
+          <span className={`toggle-chevron ${expanded ? 'toggle-chevron--open' : ''}`} />
+          {expanded ? 'Hide details' : 'See original & explanation'}
+        </button>
       </div>
 
-      {/* Simplified text — always visible */}
-      <div className="clause-simplified">
-        <p className="simplified-label">Plain English</p>
-        <p className="simplified-body">{clause.simplified}</p>
-      </div>
-
-      {/* Expand toggle */}
-      <button
-        className="clause-expand-btn"
-        onClick={() => setExpanded(!expanded)}
-      >
-        {expanded ? '▲ Hide details' : '▼ Show original & explanation'}
-      </button>
-
-      {/* Expanded content */}
+      {/* ── Expanded details ── */}
       {expanded && (
         <div className="clause-details">
 
-          <div className="detail-block">
-            <p className="detail-label">Original Text</p>
-            <p className="detail-body detail-body--original">{clause.original}</p>
+          <div>
+            <p className="detail-section-label">Original text</p>
+            <p className="original-text-block">{clause.original}</p>
           </div>
 
-          <div className="detail-block">
-            <p className="detail-label">Why This Risk Level</p>
-            <p className="detail-body">{clause.explanation}</p>
+          <div>
+            <p className="detail-section-label">Why this risk level</p>
+            <p className="risk-explanation">{clause.explanation}</p>
           </div>
 
-          {clause.attributions && clause.attributions.length > 0 && (
-            <div className="detail-block">
-              <p className="detail-label">Risk Keywords Found</p>
-              <ul className="attribution-list">
-                {clause.attributions.map((attr, i) => (
-                  <li key={i} className="attribution-item">
-                    <span
-                      className="attribution-word"
-                      style={{ color: attr.risk_level === 'HIGH' ? '#c0392b' : '#b7770d' }}
-                    >
-                      "{attr.word}"
-                    </span>
-                    <span className="attribution-reason"> — {attr.reason}</span>
-                  </li>
-                ))}
+          {/* Probability bars — inside expand only */}
+          {hasProbs && (
+            <div>
+              <p className="detail-section-label">Model confidence</p>
+              <div className="prob-bars-compact">
+                {['HIGH', 'MEDIUM', 'LOW'].map(label => {
+                  const val = clause.ml_probabilities[label] || 0;
+                  const pct = Math.round(val * 100);
+                  const key = label.toLowerCase();
+                  return (
+                    <div className="prob-row" key={label}>
+                      <span
+                        className="prob-label"
+                        style={{
+                          color: label === 'HIGH' ? 'var(--red)'
+                               : label === 'MEDIUM' ? 'var(--amber)'
+                               : 'var(--green)',
+                        }}
+                      >
+                        {label}
+                      </span>
+                      <div className="prob-track">
+                        <div
+                          className={`prob-fill--${key}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="prob-val">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Full attribution list */}
+          {meaningfulAttrs.length > 0 && (
+            <div>
+              <p className="detail-section-label">
+                {clause.shap_method === 'shap'
+                  ? 'SHAP feature attributions'
+                  : 'Risk keywords detected'}
+              </p>
+              <ul className="attr-list">
+                {meaningfulAttrs.map((attr, i) => {
+                  const val = attr.shap_value ?? (attr.weight ?? 0);
+                  return (
+                    <li key={i} className="attr-item">
+                      <span
+                        className="attr-word"
+                        style={{ color: val >= 0 ? 'var(--red)' : 'var(--green)' }}
+                      >
+                        "{attr.word}"
+                      </span>
+                      {val !== 0 && (
+                        <span className="attr-val">
+                          {val >= 0 ? '+' : ''}{val.toFixed(3)}
+                        </span>
+                      )}
+                      <span className="attr-desc">
+                        — {attr.reason || attr.direction?.replace(/_/g, ' ') || ''}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
 
+          {/* Entities */}
           {clause.entities && clause.entities.length > 0 && (
-            <div className="detail-block">
-              <p className="detail-label">Identified Entities</p>
+            <div>
+              <p className="detail-section-label">Identified entities</p>
               <div className="entity-row">
                 {clause.entities.map((ent, i) => (
                   <span key={i} className="entity-pill" title={ent.description}>
@@ -109,11 +197,10 @@ const ClauseCard = ({ clause, index }) => {
               </div>
             </div>
           )}
-
         </div>
       )}
     </div>
   );
-};
+}
 
 export default ClauseCard;

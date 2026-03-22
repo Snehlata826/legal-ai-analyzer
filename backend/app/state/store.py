@@ -1,5 +1,5 @@
 """
-In-memory store for document processing requests
+In-memory store for document processing requests.
 """
 from typing import Dict, List, Any
 

@@ -1,73 +1,61 @@
-/**
- * API client for backend communication
- */
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
 
-const API_BASE_URL = 'http://localhost:8001';
+async function apiFetch(path, options = {}) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, options);
+  } catch (err) {
+    throw new Error(
+      `Cannot reach the backend server at ${API_BASE_URL}. ` +
+      'Make sure it is running: uvicorn app.main:app --reload --port 8001'
+    );
+  }
+  if (!response.ok) {
+    let detail = `Request failed (${response.status})`;
+    try { const body = await response.json(); detail = body.detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  return response;
+}
 
-/** Upload PDF document */
 export const uploadDocument = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
-
-  const response = await fetch(`${API_BASE_URL}/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Upload failed');
-  }
+  const response = await apiFetch('/upload', { method: 'POST', body: formData });
   return response.json();
 };
 
-/** Simplify and analyse clauses */
 export const simplifyClauses = async (requestId) => {
-  const response = await fetch(`${API_BASE_URL}/simplify/${requestId}`, {
-    method: 'POST',
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Simplification failed');
-  }
+  const response = await apiFetch(`/simplify/${requestId}`, { method: 'POST' });
   return response.json();
 };
 
-/** Ask a question about the document (RAG) */
 export const askQuestion = async (requestId, question) => {
-  const response = await fetch(`${API_BASE_URL}/ask/`, {
+  const response = await apiFetch('/ask/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ request_id: requestId, question }),
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Q&A failed');
-  }
   return response.json();
 };
 
-/** Download PDF report */
+export const evaluateDocument = async (requestId, includeShap = true) => {
+  const response = await apiFetch(
+    `/evaluate/${requestId}?include_shap=${includeShap}`
+  );
+  return response.json();
+};
+
 export const downloadReport = async (requestId) => {
-  const response = await fetch(`${API_BASE_URL}/report/${requestId}`);
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Report generation failed');
-  }
-
+  const response = await apiFetch(`/report/${requestId}`);
   const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const url  = window.URL.createObjectURL(blob);
+  const a    = document.createElement('a');
   a.style.display = 'none';
   a.href = url;
   a.download = `legal_analysis_${requestId.substring(0, 8)}.pdf`;
   document.body.appendChild(a);
   a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  }, 100);
+  setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 100);
 };

@@ -1,113 +1,125 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 
-const FileUploader = ({ onFileSelect }) => {
-  const fileInputRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
+const FEATURES = [
+  {
+    icon: '⚖',
+    title: 'ML risk classification',
+    desc: 'Logistic Regression + Random Forest ensemble with confidence scores',
+  },
+  {
+    icon: '✦',
+    title: 'Plain-English summaries',
+    desc: 'Every clause rewritten in simple language by Groq LLaMA3',
+  },
+  {
+    icon: '◎',
+    title: 'Q&A chat',
+    desc: 'Ask anything about the document — grounded RAG answers',
+  },
+];
 
-  const handleFile = (file) => {
+function FileUploader({ onFileSelect }) {
+  const inputRef  = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const [error, setError]       = useState('');
+
+  const handleFile = useCallback((file) => {
     if (!file) return;
     if (file.type !== 'application/pdf') {
-      alert('Please upload a PDF file.');
+      setError('Only PDF files are supported.');
       return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File exceeds the 10 MB limit.');
+      return;
+    }
+    setError('');
     onFileSelect(file);
-  };
+  }, [onFileSelect]);
 
-  const handleChange = (e) => handleFile(e.target.files[0]);
-
-  const handleDrop = (e) => {
+  const onDrop = useCallback((e) => {
     e.preventDefault();
-    setIsDragging(false);
+    setDragging(false);
     handleFile(e.dataTransfer.files[0]);
-  };
+  }, [handleFile]);
 
   return (
     <div className="upload-page">
 
-      {/* Left — info panel */}
+      {/* Left info panel */}
       <div className="upload-info">
-        <p className="upload-info-eyebrow">AI-Powered</p>
+        <p className="upload-info-eyebrow">AI-powered · ML classifier · SHAP</p>
         <h2 className="upload-info-heading">
-          Understand your<br />legal documents
+          Understand your<br />
+          <em>legal documents</em>
         </h2>
         <p className="upload-info-body">
-          Upload any legal PDF and get plain-English summaries,
-          risk analysis, and instant answers to your questions —
-          all powered by Groq's free LLaMA3 API.
+          Upload any legal PDF and get instant risk analysis, plain-English
+          summaries, and answers to your questions — powered by a trained
+          ML ensemble and Groq LLaMA3.
         </p>
 
         <div className="upload-features-list">
-          <div className="feature-row">
-            <span className="feature-icon">📋</span>
-            <div>
-              <p className="feature-title">Clause Extraction</p>
-              <p className="feature-desc">Automatically identifies every clause</p>
+          {FEATURES.map(({ icon, title, desc }) => (
+            <div className="feature-row" key={title}>
+              <div className="feature-icon-wrap">{icon}</div>
+              <div>
+                <p className="feature-title">{title}</p>
+                <p className="feature-desc">{desc}</p>
+              </div>
             </div>
-          </div>
-          <div className="feature-row">
-            <span className="feature-icon">⚠</span>
-            <div>
-              <p className="feature-title">Risk Analysis</p>
-              <p className="feature-desc">HIGH / MEDIUM / LOW with explanation</p>
-            </div>
-          </div>
-          <div className="feature-row">
-            <span className="feature-icon">💬</span>
-            <div>
-              <p className="feature-title">Q&A Chat</p>
-              <p className="feature-desc">Ask anything, get grounded answers</p>
-            </div>
-          </div>
-          <div className="feature-row">
-            <span className="feature-icon">↓</span>
-            <div>
-              <p className="feature-title">PDF Report</p>
-              <p className="feature-desc">Download full analysis as PDF</p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Right — upload zone */}
+      {/* Right upload zone */}
       <div className="upload-zone-wrap">
         <input
+          ref={inputRef}
           type="file"
-          ref={fileInputRef}
-          onChange={handleChange}
           accept=".pdf"
           style={{ display: 'none' }}
+          onChange={e => handleFile(e.target.files[0])}
         />
 
         <div
-          className={`upload-zone ${isDragging ? 'upload-zone--drag' : ''}`}
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
+          className={`upload-zone${dragging ? ' upload-zone--drag' : ''}`}
+          onClick={() => inputRef.current?.click()}
+          onDragOver={e => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && inputRef.current?.click()}
+          aria-label="Upload PDF"
         >
-          <div className="upload-zone-icon">
-            {isDragging ? '📂' : '📄'}
+          <div className="upload-icon-wrap">
+            {dragging ? '📂' : '📄'}
           </div>
           <p className="upload-zone-heading">
-            {isDragging ? 'Drop to upload' : 'Upload your document'}
+            {dragging ? 'Drop to upload' : 'Upload your document'}
           </p>
           <p className="upload-zone-sub">
-            Click to browse or drag & drop
+            Drag & drop or click to browse
           </p>
-          <p className="upload-zone-hint">PDF files only · Max 10MB</p>
-
+          <p className="upload-zone-hint">PDF only · Max 10 MB</p>
+          {error && (
+            <p style={{ color: 'var(--red)', fontSize: '.8rem', marginBottom: 12 }}>
+              {error}
+            </p>
+          )}
           <button className="upload-btn" tabIndex={-1}>
-            Choose PDF File
+            Choose PDF file
           </button>
         </div>
 
         <p className="upload-disclaimer">
-          🔒 Your document is processed locally and never stored permanently.
+          <span>🔒</span>
+          Processed in your session only · Never stored permanently
         </p>
       </div>
-
     </div>
   );
-};
+}
 
 export default FileUploader;
