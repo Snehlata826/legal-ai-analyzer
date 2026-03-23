@@ -48,7 +48,7 @@ function FileUploader({ onFileSelect }) {
 
       {/* Left info panel */}
       <div className="upload-info">
-        <p className="upload-info-eyebrow">AI-powered · ML classifier · SHAP</p>
+        <p className="upload-info-eyebrow">AI-powered · ML classifier · Groq LLaMa3</p>
         <h2 className="upload-info-heading">
           Understand your<br />
           <em>legal documents</em>

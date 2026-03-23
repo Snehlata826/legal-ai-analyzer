@@ -100,10 +100,12 @@ function App() {
           </div>
           <div className="header-pills">
             <span className="pill pill--dark">Groq LLaMA3</span>
-            {isML
-              ? <span className="pill pill--purple">ML Ensemble</span>
-              : <span className="pill pill--green">Keyword</span>
-            }
+            {results.length > 0 && isML && (
+            <span className="pill pill--purple">ML Ensemble</span>
+            )}
+            {results.length > 0 && !isML && (
+              <span className="pill pill--green">Keyword</span>
+            )}
             {hasSHAP && <span className="pill pill--purple">SHAP</span>}
           </div>
         </div>
