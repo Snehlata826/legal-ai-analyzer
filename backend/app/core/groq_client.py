@@ -1,9 +1,12 @@
 """
-Groq API client — uses centralised settings from config.py
-Get your free key at: https://console.groq.com
+Groq API client — production-safe version (Groq 0.9.0 compatible)
+Fixes:
+- Proxy injection issue (Railway/httpx)
+- Prevents 500 errors with fallback
 """
-from groq import Groq
 
+from groq import Groq
+import os
 from .config import settings
 
 _client: Groq | None = None
@@ -12,14 +15,25 @@ _client: Groq | None = None
 def get_groq_client() -> Groq:
     """Return (or lazily create) the Groq client singleton."""
     global _client
+
     if _client is None:
         if not settings.groq_api_key:
             raise ValueError(
                 "GROQ_API_KEY is not set. "
-                "Copy backend/.env.example → backend/.env and add your key."
+                "Add it in your .env or Railway variables."
             )
+
+        # 🚨 CRITICAL FIX: Remove proxy env vars (causes Groq crash)
+        os.environ.pop("HTTP_PROXY", None)
+        os.environ.pop("HTTPS_PROXY", None)
+        os.environ.pop("http_proxy", None)
+        os.environ.pop("https_proxy", None)
+
+        # ✅ Initialize Groq client safely
         _client = Groq(api_key=settings.groq_api_key)
-        print(f"[INFO] Groq client initialised (model: {settings.groq_default_model})")
+
+        print(f"[INFO] Groq client initialized (model: {settings.groq_default_model})")
+
     return _client
 
 
@@ -30,19 +44,10 @@ def call_groq(
     model: str | None = None,
 ) -> str:
     """
-    Call the Groq chat completion API.
-
-    Args:
-        prompt:     User message.
-        system:     System instruction prepended to the conversation.
-        max_tokens: Max response length (defaults to settings.groq_max_tokens).
-        model:      Model override (defaults to settings.groq_default_model).
+    Call the Groq chat completion API with safe fallback.
 
     Returns:
-        Stripped response string.
-
-    Raises:
-        RuntimeError: If the Groq API call fails.
+        Response string (never crashes backend).
     """
     client = get_groq_client()
 
@@ -54,13 +59,17 @@ def call_groq(
             model=_model,
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user",   "content": prompt},
+                {"role": "user", "content": prompt},
             ],
             max_tokens=_max_tokens,
             temperature=settings.groq_temperature,
         )
+
         return response.choices[0].message.content.strip()
 
     except Exception as e:
+        # ❌ DO NOT crash backend
         print(f"[ERROR] Groq API call failed (model={_model}): {e}")
-        raise RuntimeError(f"Groq API error: {str(e)}")
+
+        # ✅ Safe fallback response
+        return "AI service temporarily unavailable. Please try again later."

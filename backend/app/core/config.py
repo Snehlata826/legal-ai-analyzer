@@ -28,7 +28,7 @@ class Settings:
 
     # ── Groq ─────────────────────────────────────────────
     groq_api_key: str = ""
-    groq_default_model: str = "llama3-8b-8192"
+    groq_default_model: str = "llama-3.1-8b-instant"
     groq_max_tokens: int = 500
     groq_temperature: float = 0.3
 

@@ -30,7 +30,7 @@ def simplify_text(text: str) -> str:
                 "into simple plain English that anyone can understand."
             ),
             max_tokens=150,
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
         )
         _cache[cache_key] = result
         return result
