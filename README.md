@@ -1,4 +1,4 @@
-```markdown
+
 # ⚖️ LexAnalyze — Legal Document Intelligence
 
 AI-powered legal document analysis with **ML risk classification**, **SHAP explainability**, **RAG-based Q&A**, and **baseline comparison** — all running locally with a free Groq API key.
@@ -281,4 +281,4 @@ lexanalyze/
 ## Disclaimer
 
 For informational purposes only. Not legal advice. Always consult a qualified attorney for legal matters.
-```
+
